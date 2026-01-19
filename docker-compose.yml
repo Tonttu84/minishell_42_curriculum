@@ -1,0 +1,6 @@
+services:
+  minishell:
+    build: ./minishell
+    container_name: minishell
+    working_dir: /app
+    entrypoint: ["./minishell"]
