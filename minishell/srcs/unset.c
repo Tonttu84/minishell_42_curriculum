@@ -1,0 +1,44 @@
+#include "../include/minishell.h"
+
+int	unset_one(char *env_val)
+{
+	t_data	*data;
+	int		i;
+	int		length;
+
+	i = 0;
+	data = get_data();
+	if (env_val == NULL)
+		return (1);
+	length = ft_strlen(env_val);
+	while (i < ENV_SIZE)
+	{
+		if (!ft_strncmp(env_val, data->env[i], length)
+			&& (data->env[i][length] == 0 || data->env[i][length] == '='))
+		{
+			ft_memset(data->env[i], 0, MAX_LENGTH + 1);
+			return (1);
+		}
+		i++;
+	}
+	return (0);
+}
+
+//BASH seems to return 0 even if the value does not exist
+int	bi_unset(int argc, char *argv[], t_sent *sent)
+{
+	int	i;
+
+	if (argc == 1 || sent->inpipe || sent->outpipe)
+		return (0);
+	i = 1;
+	while (i < argc)
+	{
+		if (argv[i])
+		{
+			unset_one(argv[i]);
+		}
+		i++;
+	}
+	return (0);
+}

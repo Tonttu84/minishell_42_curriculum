@@ -1,0 +1,147 @@
+#include "../include/minishell.h"
+
+void	mark_commands(t_char *cl, int i)
+{
+	if (!i || cl[i].esc || cl[i - 1].esc || cl[i + 1].c == 0 || cl[i + 1].esc)
+		;
+	else if (cl[i - 1].c == cl[i].c && i > 1 && !cl[i - 2].esc && ft_isspace \
+	(cl[i - 2].c) && ft_isspace(cl[i + 1].c) && (cl[i].c == '<' || \
+	cl[i].c == '>'))
+	{
+		cl[i].com = 1;
+		cl[i - 1].com = 1;
+	}
+	else if (ft_isspace(cl[i - 1].c) && cl[i].c == '>' && cl[i + 1].c == '>'
+		&& !cl[i + 2].esc && ft_isspace(cl[i + 2].c))
+	{
+		cl[i].com = 1;
+		cl[i + 1].com = 1;
+	}
+	else if (ft_isspace(cl[i - 1].c) && cl[i].c == '<' && cl[i + 1].c == '<'
+		&& cl[i + 2].esc == 0 && ft_isspace(cl[i + 2].c))
+	{
+		cl[i].com = 1;
+		cl[i + 1].com = 1;
+	}
+	else if (!ft_isspace(cl[i - 1].c) ||!ft_isspace(cl[i + 1].c))
+		;
+	else if (cl[i].c == '|' || cl[i].c == '<' || cl[i].c == '>')
+		cl[i].com = 1;
+}
+
+void	mark_env_var(t_char *nl, int end)
+{
+	nl[end].var = 1;
+	end++;
+	if (nl[end].c == 0 || nl[end].esc || (!ft_isalpha(nl[end].c)
+			&& nl[end].c != '_' && nl[end].c != '?'))
+		return ;
+	else
+	{
+		nl[end].var = 1;
+		if (nl[end].c == '?')
+			return ;
+		end++;
+	}
+	while (nl[end].ghost || (nl[end].c != 0 && !nl[end].esc
+			&& (ft_isalnum(nl[end].c) || nl[end].c == '_')))
+	{
+		if (nl[end + 1].blok != 1)
+		{
+			nl[end].var = 1;
+		}
+		else
+			return ;
+		end++;
+	}
+}
+
+void	mark_envvar(t_char *newline)
+{
+	int	i;
+	int	heredoc;
+
+	heredoc = 0;
+	i = 0;
+	while (newline[i].c != 0)
+	{
+		if (newline[i].esc)
+			;
+		else if (start_of_heredoc(newline, i))
+		{
+			heredoc = 1;
+			while (newline[i].c != 0 && ft_isspace(newline[i].c))
+				i++;
+		}
+		else if (heredoc && end_of_heredoc(newline, i))
+			heredoc = 0;
+		else if (heredoc)
+			;
+		else if (newline[i].c == '$' && \
+		(question_or_underscore(newline[i + 1].c) \
+		|| ft_isalnum(newline[i + 1].c)))
+			mark_env_var(newline, i);
+		i++;
+	}
+}
+
+// di is passed as a 0 to reduce lines
+static void	expand_variables(t_char *dst, t_char *c, t_data *data, int di)
+{
+	int			i;
+	const char	*temp;
+
+	i = 0;
+	while (!data->error && c[i].c != 0 && di < (int)MAX_ARG_STRLEN)
+	{
+		if (!data->error && c[i].c == '$' && c[i].esc == 0 && c[i].var
+			&& (ft_isalnum(c[i + 1].c) || question_or_underscore(c[i + 1].c)))
+		{
+			temp = find_env(c + i, data);
+			di = copy_env_to_tchar(dst, di, temp);
+		}
+		if (!data->error && c[i].var == 0)
+		{
+			dst[di].ghost = c[i].ghost;
+			dst[di].c = c[i].c;
+			dst[di].esc = c[i].esc;
+			dst[di].var = c[i].var;
+			dst[di].com = c[i].com;
+			dst[di].added = c[i].added;
+			di++;
+		}
+		i++;
+	}
+	dst[di].c = 0;
+}
+
+bool	check_for_all_spaces(t_char *line);
+
+// dynamic memory is problematic due to unknown sizes,
+//	last few characters are missing sometimes
+t_char	*lexify(char *line, t_data *data)
+{
+	t_char			*newline;
+	static t_char	expanded[MAX_ARG_STRLEN];
+	int				i;
+
+	i = ft_strlen(line);
+	if (i > (int)MAX_ARG_STRLEN)
+		return (error_printf(line, "File name too long"), NULL);
+	newline = ft_xcalloc(i * 3 + 500, sizeof(t_char));
+	data->newline = newline;
+	if (data->newline)
+		remove_quotes(newline, line, 0, 0);
+	i = 0;
+	while (data->newline && newline[i].c != 0 && data->error == 0)
+		mark_commands(newline, i++);
+	if (data->newline && data->error == 0)
+		mark_envvar(newline);
+	if (data->newline && data->error == 0)
+		expand_variables(expanded, newline, data, 0);
+	if (expanded[MAX_ARG_STRLEN - 1].c != 0)
+		ft_exit(data, "USER", "Line is too long", 42);
+	if (data->newline && data->error == 0)
+		create_list(data, expanded);
+	return (newline);
+}

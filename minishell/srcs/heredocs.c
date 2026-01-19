@@ -1,0 +1,91 @@
+#include "../include/minishell.h"
+
+char	*expand_heredocs(char *unexpanded)
+{
+	int		i;
+	int		k;
+	char	*expanded;
+
+	i = 0;
+	k = 0;
+	expanded = ft_xcalloc(65000, 1);
+	while (unexpanded[i])
+	{
+		if (unexpanded[i] == '$')
+		{
+			expand_envvar(unexpanded, expanded, &i, &k);
+		}
+		expanded[k] = unexpanded[i];
+		i++;
+		k++;
+	}
+	free(unexpanded);
+	return (expanded);
+}
+
+static char	*return_result(char *result, int expand)
+{
+	if (result == NULL)
+		result = ft_strdup("");
+	if (expand)
+		return (expand_heredocs(result));
+	return (result);
+}
+
+/*
+* Utility function for freeing and setting to NULL
+*/
+static void	free_and_set_null(void **ptr)
+{
+	if (ptr == NULL)
+		return ;
+	free(*ptr);
+	(*ptr) = NULL;
+}
+
+/*
+ * strjoin_wrapper - wrapper for ft_strjoin that frees the first string
+ * @s1: first string to join
+ * @s2: second string to join
+ *
+ * Return: pointer to the joined string
+ */
+static char	*strjoin_wrapper(char *s1, char **s2, int free_second)
+{
+	char	*result;
+
+	result = ft_strjoin(s1, *s2);
+	free(s1);
+	if (free_second)
+		free_and_set_null((void **)s2);
+	return (result);
+}
+
+// If expand is 1, expansion happens
+char	*create_heredoc(char *terminat, int expand, char *result, char *tmp)
+{
+	char	*prompt;
+
+	prompt = ft_strjoin(terminat, ">");
+	while (tmp == NULL || ft_strncmp(terminat, tmp, ft_strlen(terminat) + 1))
+	{
+		if (tmp)
+		{
+			tmp = strjoin_wrapper(tmp, (char *[]){"\n"}, 0);
+			if (result)
+				result = strjoin_wrapper(result, &tmp, 1);
+			else
+				result = tmp;
+		}
+		tmp = readline(prompt);
+		if (!tmp)
+		{
+			if (g_sig == SIGINT)
+				free_and_set_null((void **)&result);
+			else
+				printf(FORMAT, SHELL, WARN, DOC, __LINE__, DELIM, terminat);
+			break ;
+		}
+	}
+	return (free(prompt), free(tmp), return_result(result, expand));
+}
