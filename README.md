@@ -35,7 +35,7 @@ Redirections and Heredoc (> >> < <<)
 
 Builtins: echo, cd, pwd, export, unset, env, exit
 
-Signal handling (Ctrl+C, Ctrl+D, Ctrl+\)
+Signal handling (Ctrl+C, Ctrl+D, Ctrl+\\)
 
 Readline integration for history and editing
 
