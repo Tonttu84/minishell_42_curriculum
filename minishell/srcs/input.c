@@ -4,10 +4,9 @@
 /*
 ** tokenises cmd and parses it.
 */
-static void	process(char *line, t_data *data, t_char *result)
+static void	process(char *line, t_data *data)
 {
-	(void)result;
-	result = lexify(line, data);
+	lexify(line, data);
 	free(data->newline);
 	data->newline = NULL;
 	if (data->error == 0)
@@ -57,7 +56,7 @@ int	prompt_input(char *line, int pfd[2], t_data *data, int input)
 		return (printf("exit\n"));
 	if (line[0] == '\0')
 		return (0);
-	process(line, data, NULL);
+	process(line, data);
 	if (data->page[0] && !data->page[0]->outpipe && !data->page[0]->inpipe
 		&& is_builtin(data->page[0]->array[0]))
 		run_builtin(data->page[0]->argc, data->page[0]->array, data->page[0],
@@ -81,7 +80,6 @@ int	prompt_input(char *line, int pfd[2], t_data *data, int input)
 void	get_more_input(void)
 {
 	char	*line;
-	t_char	*result;
 
 	get_data()->herecount = 0;
 	line = NULL;
@@ -96,9 +94,7 @@ void	get_more_input(void)
 			line = NULL;
 		}
 	}
-	result = lexify(line, get_data());
-	free(result);
-	result = NULL;
+	lexify(line, get_data());
 	free(line);
 	return ;
 }
